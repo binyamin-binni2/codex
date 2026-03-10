@@ -35,6 +35,7 @@ jobs:
           workspaces: codex-rs
 
       - name: Build codex-cli
+        shell: bash
         env:
           CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
           CC_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
@@ -43,7 +44,17 @@ jobs:
           RANLIB_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
           OPENSSL_STATIC: "1"
           RUSTFLAGS: -C debuginfo=0
-        run: cargo build --release --target "$TARGET" -p codex-cli
+        run: |
+          set -euo pipefail
+          cargo build --release --target "$TARGET" -p codex-cli &
+          build_pid=$!
+
+          while kill -0 "$build_pid" 2>/dev/null; do
+            echo "build still running: $(date -u +%FT%TZ)"
+            sleep 60
+          done
+
+          wait "$build_pid"
 
       - name: Package artifact
         run: |
