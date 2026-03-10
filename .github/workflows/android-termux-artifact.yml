@@ -17,6 +17,7 @@ jobs:
     env:
       TARGET: aarch64-linux-android
       CARGO_TERM_COLOR: always
+      CARGO_BUILD_JOBS: "1"
     steps:
       - uses: actions/checkout@v6
 
@@ -46,7 +47,7 @@ jobs:
           RUSTFLAGS: -C debuginfo=0
         run: |
           set -euo pipefail
-          cargo build --release --target "$TARGET" -p codex-cli &
+          cargo build --release -j 1 --target "$TARGET" -p codex-cli &
           build_pid=$!
 
           while kill -0 "$build_pid" 2>/dev/null; do
