@@ -47,11 +47,12 @@ jobs:
           RUSTFLAGS: -C debuginfo=0
         run: |
           set -euo pipefail
-          cargo build --release -j 1 --target "$TARGET" -p codex-cli &
+          cargo build --release -j 1 -vv --target "$TARGET" -p codex-cli 2>&1 &
           build_pid=$!
 
           while kill -0 "$build_pid" 2>/dev/null; do
-            echo "build still running: $(date -u +%FT%TZ)"
+            echo "build still running: $(date -u +%FT%TZ) pid=$build_pid"
+            ps -o pid,ppid,%cpu,%mem,stat,etime,cmd -p "$build_pid" || true
             sleep 60
           done
 
