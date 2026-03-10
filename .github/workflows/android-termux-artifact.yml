@@ -1,0 +1,59 @@
+name: android-termux-artifact
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    defaults:
+      run:
+        working-directory: codex-rs
+    env:
+      TARGET: aarch64-linux-android
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: aarch64-linux-android
+
+      - name: Set up Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs
+
+      - name: Build codex-cli
+        env:
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
+          CC_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
+          CXX_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++
+          AR_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          RANLIB_aarch64_linux_android: ${{ steps.ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
+          OPENSSL_STATIC: "1"
+          RUSTFLAGS: -C debuginfo=0
+        run: cargo build --release --target "$TARGET" -p codex-cli
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          cp target/${TARGET}/release/codex dist/codex
+          chmod +x dist/codex
+          tar -C dist -czf codex-android-aarch64.tar.gz codex
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-aarch64
+          path: |
+            codex-rs/dist/codex
+            codex-rs/codex-android-aarch64.tar.gz
+          if-no-files-found: error
+          
